@@ -18,8 +18,10 @@ public slots:
     void onNewConnection();
     void processTextMessage(QString message);
     void socketDisconnected();
-    void onValueChanged(QString id, QString resource, QVariantMap value);
+    void onValueChanged(QString id, QString resource);
     void onDeviceListUpdate();
+
+    void onGetDevice(QString id, quint32 mid, QWebSocket* s);
 
 private:
     SmartHomeServer* m_server;

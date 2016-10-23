@@ -13,7 +13,7 @@
 #include "QJsonObject"
 #include "QVariantMap"
 
-#define API_URL "http://127.0.0.1:7000/api"
+#define API_URL "http://127.0.0.1:9000/api"
 
 
 SmartHomeServer::SmartHomeServer(QObject *parent) :
@@ -259,6 +259,6 @@ void SmartHomeServer::onValueChanged(QString id, QString resource, QVariantMap v
     vars->insert(resource, (QVariantMap) value);
 
 
-    emit valueChanged(id, resource, value);
+    emit valueChanged(id, resource);
 }
 

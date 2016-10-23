@@ -22,7 +22,8 @@ public:
 
 signals:
     void devicesChanged();
-    void valueChanged(QString id, QString resource, QVariantMap value);
+    void valueChanged(QString id, QString resource);
+    void searchDevices();
 public slots:
 
     QByteArray getDeviceScripts(QString id);

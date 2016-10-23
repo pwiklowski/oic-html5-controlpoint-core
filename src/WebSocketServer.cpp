@@ -6,7 +6,7 @@
 WebSocketServer::WebSocketServer(SmartHomeServer* server) : QObject(server)
 {
     m_server = server;
-    connect(m_server, SIGNAL(valueChanged(QString,QString,QVariantMap)), this, SLOT(onValueChanged(QString, QString,QVariantMap)));
+    connect(m_server, SIGNAL(valueChanged(QString,QString)), this, SLOT(onValueChanged(QString, QString)));
     connect(m_server, SIGNAL(devicesChanged()), this, SLOT(onDeviceListUpdate()));
 
     m_webSocketServer = new QWebSocketServer("wiklosoft_iot", QWebSocketServer::NonSecureMode, this);
@@ -48,41 +48,12 @@ void WebSocketServer::processTextMessage(QString message)
 
     QString request = payload.value("request").toString();
     if (request == "RequestGetDevices"){
-        QJsonObject response;
-        response.insert("mid",mid);
-
-
-        QList<IotDevice*> devices = m_server->getClientList();
-        QJsonObject root;
-        QString json;
-        QJsonArray devs;
-
-        for(int i=0; i<devices.length();i++)
-        {
-            IotDevice* device = devices.at(i);
-            QJsonObject dev;
-            dev["name"] = device->getName();
-            dev["id"] = device->getID().remove("device:");
-
-            QJsonArray vars;
-            for(int i=0; i<device->getVariables()->size(); i++){
-                IotDeviceVariable* var = device->getVariables()->at(i);
-                vars.append(QJsonValue::fromVariant(var->getResource()));
-            }
-            dev["variables"] = vars;
-
-            devs.append(dev);
-        }
-        root.insert("devices", devs);
-        json = QJsonDocument(root).toJson(QJsonDocument::Compact);
-
-        response.insert("payload", root);
-
-        socket->sendTextMessage(QJsonDocument(response).toJson());
+        onDeviceListUpdate();
     }else if(request == "RequestSetValue"){
         QString id = payload.value("di").toString();
         QString resource = payload.value("resource").toString();
         QVariantMap value = payload.value("value").toObject().toVariantMap();
+        qDebug() << value;
 
         IotDevice* device = m_server->getDeviceById(id);
         if (device){
@@ -103,33 +74,11 @@ void WebSocketServer::processTextMessage(QString message)
 
         m_server->runScript(id, e);
         qDebug() << "Run script" << id;
-    }else if(request == "RequestGetDeviceResources"){
-        QJsonObject response;
-        response.insert("mid",mid);
-
-        QString id = payload.value("uuid").toString();
-
-        IotDevice* dev = m_server->getDeviceById(id);
-
-        QVariantMap* storedVariables = m_server->getVariablesStorage(id);
-
-        QJsonArray vars;
-        if (dev)
-        {
-            for(int i=0; i<dev->getVariables()->size(); i++)
-            {
-                IotDeviceVariable* var = dev->getVariables()->at(i);
-                QVariantMap res = storedVariables->value(var->getResource()).toMap();
-
-                QJsonObject v;
-                v["name"] = var->getResource();
-                v["values"]= QJsonObject::fromVariantMap(res);
-                vars.append(v);
-            }
-        }
-
-        response.insert("payload", vars);
-        socket->sendTextMessage(QJsonDocument(response).toJson());
+    }else if(request == "RequestGetDevice"){
+        QString uuid = payload.value("uuid").toString();
+        onGetDevice(uuid, mid, socket);
+    }else if(request == "RequestSearchDevices"){
+        emit m_server->searchDevices();
     }
 
 
@@ -149,8 +98,6 @@ void WebSocketServer::onDeviceListUpdate(){
     event.insert("event", "EventDeviceListUpdate");
 
     QList<IotDevice*> devices = m_server->getClientList();
-    QJsonObject root;
-    QString json;
     QJsonArray devs;
 
     for(int i=0; i<devices.length();i++)
@@ -159,42 +106,81 @@ void WebSocketServer::onDeviceListUpdate(){
         QJsonObject dev;
         dev["name"] = device->getName();
         dev["id"] = device->getID().remove("device:");
-
-        QJsonArray vars;
-        for(int i=0; i<device->getVariables()->size(); i++){
-            IotDeviceVariable* var = device->getVariables()->at(i);
-            vars.append(QJsonValue::fromVariant(var->getResource()));
-        }
-        dev["variables"] = vars;
-
         devs.append(dev);
     }
-    root.insert("devices", devs);
-    json = QJsonDocument(root).toJson(QJsonDocument::Compact);
-
-    event.insert("payload", root);
+    event.insert("payload", devs);
 
     foreach (QWebSocket* s, m_socketList) {
         s->sendTextMessage(QJsonDocument(event).toJson());
-
     }
 }
 
-void WebSocketServer::onValueChanged(QString id, QString resource, QVariantMap value){
-    qDebug() << "WebSocket onValueChanged" << id << resource << value;
+void WebSocketServer::onGetDevice(QString id, quint32 mid, QWebSocket* s){
+    qDebug() << "WebSocket onGetDevice" << id;
+
+    IotDevice* dev = m_server->getDeviceById(id);
+
+    QJsonObject obj;
+    obj.insert("event", "ResponseGetDevice");
+
+    QVariantMap* storedVariables = m_server->getVariablesStorage(id);
+
+    QJsonArray vars;
+    if (dev)
+    {
+        for(int i=0; i<dev->getVariables()->size(); i++)
+        {
+            IotDeviceVariable* var = dev->getVariables()->at(i);
+            QVariantMap res = storedVariables->value(var->getResource()).toMap();
+
+            QJsonObject v;
+            v["name"] = var->getResource();
+            v["rt"] = "oic.r.light.dimming";
+            v["values"]= QJsonObject::fromVariantMap(res);
+            vars.append(v);
+        }
+        QJsonObject d;
+
+        d.insert("name", dev->getName());
+        d.insert("resources", vars);
+        d.insert("uuid", id);
+
+        obj.insert("payload",d);
+
+        obj.insert("mid", QJsonValue::fromVariant(mid));
+
+        s->sendTextMessage(QJsonDocument(obj).toJson());
+    }
+}
+
+void WebSocketServer::onValueChanged(QString id, QString resource){
+    qDebug() << "WebSocket onValueChanged" << id << resource;
+
+    IotDevice* dev = m_server->getDeviceById(id);
 
     QJsonObject obj;
     obj.insert("event", "EventValueUpdate");
 
-    QJsonObject payload;
-    payload.insert("di", id);
-    payload.insert("resource", resource);
-    payload.insert("value", QJsonObject::fromVariantMap(value));
+    QVariantMap* storedVariables = m_server->getVariablesStorage(id);
 
-    obj.insert("payload", payload);
+    if (dev)
+    {
+        QVariantMap res = storedVariables->value(resource).toMap();
 
-    foreach (QWebSocket* s, m_socketList) {
-        s->sendTextMessage(QJsonDocument(obj).toJson());
+        QJsonObject d;
+
+        d.insert("name", dev->getName());
+        d.insert("resource",resource);
+        d.insert("di", id);
+        d.insert("value", QJsonObject::fromVariantMap(res));
+
+        obj.insert("payload",d);
+
+        foreach (QWebSocket* s, m_socketList) {
+            s->sendTextMessage(QJsonDocument(obj).toJson());
+        }
     }
+
+
 }
 

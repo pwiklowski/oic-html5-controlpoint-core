@@ -11,6 +11,7 @@ OcfDeviceController::OcfDeviceController(SmartHomeServer* parent) : QObject((QOb
 
     QObject::connect(this, SIGNAL(deviceAdded(IotDevice*)), m_server, SLOT(deviceAdded(IotDevice*)));
     QObject::connect(this, SIGNAL(deviceRemoved(IotDevice*)), m_server, SLOT(deviceRemoved(IotDevice*)));
+    QObject::connect(m_server, SIGNAL(searchDevices()), this, SLOT(findDevices()));
 
 
     m_client = new OICClient([&](COAPPacket* packet){
