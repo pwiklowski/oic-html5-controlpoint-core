@@ -1,8 +1,6 @@
 #include "QUrl"
 #include "SmartHomeServer.h"
-#include "IotEvent.h"
 #include "QThread"
-#include "Settings.h"
 #include "QDateTime"
 
 #include "QNetworkRequest"
@@ -21,7 +19,6 @@
 SmartHomeServer::SmartHomeServer(QObject *parent) :
     QObject(parent)
 {
-    Settings* settings = new Settings(this);
     m_server.listen(QHostAddress::Any, 9999);
     m_network = new QNetworkAccessManager(this);
 
@@ -249,12 +246,12 @@ void SmartHomeServer::onValueChanged(QString id, QString resource, QVariantMap v
     event["value"] = value;
 
 
-    QStringList scripts  = getScripts(d->getID());
-    foreach(QString script, scripts)
-    {
+//    QStringList scripts  = getScripts(d->getID());
+//    foreach(QString script, scripts)
+//    {
 
 
-    }
+//    }
 
 
     QVariantMap* vars = getVariablesStorage(d->getID());

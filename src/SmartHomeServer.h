@@ -4,7 +4,6 @@
 #include <QObject>
 #include "QTimer"
 #include "QTcpServer"
-#include "IotEventSetting.h"
 #include "QtScript/QScriptEngine"
 #include "QMap"
 
@@ -73,8 +72,6 @@ private:
     QString generateHash();
 
     QTcpServer m_server;
-
-    QList<IotEventSetting*> mSettingsList;
 
     QNetworkAccessManager *m_network;
 };
