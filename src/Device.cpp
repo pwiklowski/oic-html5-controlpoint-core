@@ -44,6 +44,8 @@ QVariantMap DeviceVariable::toQMap(cbor* map){
             m.insert(key.toString().c_str(), value.toInt());
         } else if (value.is_string()){
             m.insert(key.toString().c_str(), value.toString().c_str());
+        } else if (value.is_bool()){
+            m.insert(key.toString().c_str(), value.toBool());
         }
 
     }
@@ -58,10 +60,11 @@ void DeviceVariable::set(QVariantMap value){
 
         if (val.type() == QVariant::String){
             v.toMap()->insert(k.toLatin1().data(), value.value(k).toString().toLatin1().data());
+        }else if (val.type() == QVariant::Bool){
+            v.toMap()->insert(k.toLatin1().data(), (bool) value.value(k).toBool());
         }else if (val.type() == QVariant::Int || val.type() == QVariant::Double){
             v.toMap()->insert(k.toLatin1().data(), value.value(k).toInt());
         }
-
 
     }
 
